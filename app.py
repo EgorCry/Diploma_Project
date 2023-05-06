@@ -1,6 +1,5 @@
 import mysql.connector
-from flask import Flask
-from flask_mysqldb import MySQL
+from flask import Flask, jsonify, request
 
 app = Flask(__name__)
 
@@ -14,14 +13,40 @@ config = {
 }
 
 cnx = mysql.connector.connect(**config)
-
 cursor = cnx.cursor()
 
-query = "SELECT * FROM workers"
-cursor.execute(query)
+@app.route('/')
+def main():
+    return jsonify({'Title': 'Main Page'})
 
-for row in cursor:
-    print(row)
+@app.route('/workers')
+def get_workers():
+    query = "SELECT * FROM workers"
+    cursor.execute(query)
+    rows = cursor.fetchall()
+    return jsonify(rows)
+
+@app.route('/registration', methods=['POST'])
+def registration():
+    login = request.form['login']
+    password = request.form['password']
+
+    query = "SELECT * FROM accounts WHERE Login = %s AND Password = %s"
+    cursor.execute(query, (login, password))
+    account = cursor.fetchone()
+
+    if account is None:
+        # Если пользователь не найден, вернуть сообщение об ошибке
+        return jsonify({'error': 'Invalid login or password'}), 401
+
+    query = 'SELECT * FROM workers WHERE ID_worker = %s'
+    id = account[0]
+    cursor.execute(query, (id,))
+    result = cursor.fetchone()
+    
+    response = account + result
+    
+    return jsonify(response)
 
 
 if __name__ == '__main__':
