@@ -25,8 +25,13 @@ def main():
 def get_workers():
     query = "SELECT * FROM workers"
     cursor.execute(query)
+    columns = [col[0] for col in cursor.description]
     rows = cursor.fetchall()
-    return jsonify(rows)
+    workers = []
+    for row in rows:
+        worker = {columns[i]: row[i] for i in range(len(columns))}
+        workers.append(worker)
+    return jsonify(workers)
 
 @app.route('/registration', methods=['POST'])
 def registration():
@@ -61,6 +66,9 @@ def registration():
 def admin():
     global absolute_id
 
+    if absolute_id == -1:
+        abort(403, 'Forbidden')
+
     query = 'SELECT Responsible FROM workers WHERE ID_worker = %s'
     cursor.execute(query, (absolute_id,))
     result = cursor.fetchone()
@@ -77,6 +85,9 @@ def admin():
 @app.route('/worker', methods=['GET', 'POST'])
 def worker():
     global absolute_id
+
+    if absolute_id == -1:
+        abort(403, 'Forbidden')
 
     query = 'SELECT Responsible FROM workers WHERE ID_worker = %s'
     cursor.execute(query, (absolute_id,))
