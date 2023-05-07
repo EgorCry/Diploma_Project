@@ -1,5 +1,5 @@
 import mysql.connector
-from flask import Flask, jsonify, request, redirect, url_for, abort
+from flask import Flask, jsonify, request, redirect, url_for, abort, make_response
 
 app = Flask(__name__)
 
@@ -57,9 +57,15 @@ def registration():
     cursor.execute(query, (absolute_id,))
     result = cursor.fetchone()
     
+    # if result[7]:
+    #     return redirect(url_for('admin'))
+    # return redirect(url_for('worker'))
+
     if result[7]:
-        return redirect(url_for('admin'))
-    return redirect(url_for('worker'))
+        response = make_response(jsonify({'message': 'admin'}), 200)
+        return response
+    response = make_response(jsonify({'message': 'worker'}), 200)
+    return response
 
 
 @app.route('/admin', methods=['GET', 'POST'])
