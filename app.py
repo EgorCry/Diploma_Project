@@ -1,4 +1,5 @@
 import mysql.connector
+import time
 from flask import Flask, jsonify, request, redirect, url_for, abort, make_response
 
 app = Flask(__name__)
@@ -20,6 +21,7 @@ cursor = cnx.cursor()
 @app.route('/')
 def main():
     return jsonify({'Title': 'Main Page', 'ID_worker': absolute_id})
+
 
 @app.route('/workers')
 def get_workers():
