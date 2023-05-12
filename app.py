@@ -18,6 +18,7 @@ config = {
 cnx = mysql.connector.connect(**config)
 cursor = cnx.cursor()
 
+
 @app.route('/')
 def main():
     return jsonify({'Title': 'Main Page', 'ID_worker': absolute_id})
@@ -35,10 +36,11 @@ def get_workers():
         workers.append(worker)
     return jsonify(workers)
 
+
 @app.route('/registration', methods=['POST'])
 def registration():
     global absolute_id
-    
+
     if absolute_id != -1:
         return jsonify({'message': 'There is already user in the system'})
 
@@ -58,7 +60,7 @@ def registration():
     query = 'SELECT * FROM workers WHERE ID_worker = %s'
     cursor.execute(query, (absolute_id,))
     result = cursor.fetchone()
-    
+
     # if result[7]:
     #     return redirect(url_for('admin'))
     # return redirect(url_for('worker'))
@@ -70,7 +72,7 @@ def registration():
     return response
 
 
-@app.route('/admin', methods=['GET', 'POST'])
+@app.route('/admin', methods=['GET'])
 def admin():
     global absolute_id
 
@@ -84,10 +86,41 @@ def admin():
     if not result[0]:
         abort(403, 'Forbidden')
 
-    if request.method == 'POST' and request.form.get('action') == 'exit':
-        return redirect(url_for('logout'))
-    else:
-        return jsonify({'message': 'Hello, Admin!', 'ID_worker': absolute_id})
+    query = 'SELECT ID_workshop FROM workshop_worker WHERE ID_worker = %s'
+    cursor.execute(query, (absolute_id,))
+    workshops = cursor.fetchone()[0]
+
+    query = 'SELECT workshop_name FROM workshops WHERE ID_workshop = %s'
+    cursor.execute(query, (workshops,))
+    workshop_name = cursor.fetchone()[0]
+
+    query = 'SELECT ID_worker FROM workshop_worker WHERE ID_workshop = %s AND ID_worker != %s'
+    cursor.execute(query, (workshops, absolute_id,))
+    workers = cursor.fetchall()
+    worker1 = workers[0][0]
+    worker2 = workers[1][0]
+
+    query = 'SELECT First_name, Last_name FROM workers WHERE ID_worker = %s'
+    cursor.execute(query, (absolute_id,))
+    result = cursor.fetchone()
+    name = result[0]
+    surname = result[1]
+
+    print({'message': f'Hello, Admin!',
+                    'ID_worker': absolute_id,
+                    'workshop_name': workshop_name,
+                    'worker1': worker1,
+                    'worker2': worker2,
+                    'first_name': name,
+                    'second_name': surname})
+
+    return jsonify({'message': f'Hello, Admin!',
+                    'ID_worker': absolute_id,
+                    'workshop_name': workshop_name,
+                    'worker1': worker1,
+                    'worker2': worker2,
+                    'first_name': name,
+                    'second_name': surname})
 
 
 @app.route('/worker', methods=['GET', 'POST'])
