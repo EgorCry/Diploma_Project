@@ -1,10 +1,14 @@
 import mysql.connector
 import time
+import torch
+import numpy as np
+from Sensors.torch_model_class import create_model
 from flask import Flask, jsonify, request, redirect, url_for, abort, make_response
 
 app = Flask(__name__)
 
 absolute_id = -1
+model = torch.load('Sensors/torch_model.pth')
 
 # параметры подключения к базе данных
 config = {
@@ -75,6 +79,7 @@ def registration():
 @app.route('/admin', methods=['GET'])
 def admin():
     global absolute_id
+    global model
 
     if absolute_id == -1:
         abort(403, 'Forbidden')
@@ -97,8 +102,76 @@ def admin():
     query = 'SELECT ID_worker FROM workshop_worker WHERE ID_workshop = %s AND ID_worker != %s'
     cursor.execute(query, (workshops, absolute_id,))
     workers = cursor.fetchall()
-    worker1 = workers[0][0]
-    worker2 = workers[1][0]
+    worker2 = workers[0][0]
+    worker3 = workers[1][0]
+
+    query = 'SELECT r.sensor_value, t.description FROM sensor_readings r ' \
+            'INNER JOIN sensors s ON r.ID_sensor = s.ID_sensor ' \
+            'INNER JOIN type_sensor t ON s.ID_sensor = t.ID_sensor ' \
+            'WHERE s.ID_worker = %s ' \
+            'ORDER BY r.time_sensor_reading DESC ' \
+            'LIMIT 5'
+    cursor.execute(query, (worker2,))
+    readings2 = cursor.fetchall()
+    readings2 = {'temperature': [float(i[0]) for i in readings2 if i[1] == 'Temperature'][0],
+                 'pulse': [float(i[0]) for i in readings2 if i[1] == 'Pulse'][0],
+                 'high_pressure': [float(i[0]) for i in readings2 if i[1] == 'High Pressure'][0],
+                 'low_pressure': [float(i[0]) for i in readings2 if i[1] == 'Low Pressure'][0],
+                 'humidity': [float(i[0]) for i in readings2 if i[1] == 'Humidity'][0]}
+
+    input_np = np.array([readings2['temperature'],
+                         readings2['pulse'],
+                         readings2['high_pressure'],
+                         readings2['low_pressure']])
+
+    model = create_model()
+    model.eval()
+
+    output_worker2 = round(model(torch.tensor(input_np).float()).detach().item(), 1) * 100
+    humidity_worker2 = readings2['humidity']
+
+    if output_worker2 <= 50 and (40 < humidity_worker2 <= 60):
+        status_worker2 = 'SAFE'
+    elif ((50 < output_worker2 <= 75) and (60 < humidity_worker2 <= 75)) or (
+            (0 < output_worker2 <= 50) and (60 < humidity_worker2 <= 75)) or (
+            (50 < output_worker2 <= 75) and (40 < humidity_worker2 <= 60)):
+        status_worker2 = 'GOOD'
+    else:
+        status_worker2 = 'BAD'
+
+    query = 'SELECT r.sensor_value, t.description FROM sensor_readings r ' \
+            'INNER JOIN sensors s ON r.ID_sensor = s.ID_sensor ' \
+            'INNER JOIN type_sensor t ON s.ID_sensor = t.ID_sensor ' \
+            'WHERE s.ID_worker = %s ' \
+            'ORDER BY r.time_sensor_reading DESC ' \
+            'LIMIT 5'
+    cursor.execute(query, (worker3,))
+    readings3 = cursor.fetchall()
+    readings3 = {'temperature': [float(i[0]) for i in readings3 if i[1] == 'Temperature'][0],
+                 'pulse': [float(i[0]) for i in readings3 if i[1] == 'Pulse'][0],
+                 'high_pressure': [float(i[0]) for i in readings3 if i[1] == 'High Pressure'][0],
+                 'low_pressure': [float(i[0]) for i in readings3 if i[1] == 'Low Pressure'][0],
+                 'humidity': [float(i[0]) for i in readings3 if i[1] == 'Humidity'][0]}
+
+    input_np = np.array([readings3['temperature'],
+                         readings3['pulse'],
+                         readings3['high_pressure'],
+                         readings3['low_pressure']])
+
+    model = create_model()
+    model.eval()
+
+    output_worker3 = round(model(torch.tensor(input_np).float()).detach().item(), 1) * 100
+    humidity_worker3 = readings3['humidity']
+
+    if output_worker3 <= 50 and (40 < humidity_worker3 <= 60):
+        status_worker3 = 'SAFE'
+    elif ((50 < output_worker3 <= 75) and (60 < humidity_worker3 <= 75)) or (
+            (0 < output_worker3 <= 50) and (60 < humidity_worker3 <= 75)) or (
+            (50 < output_worker3 <= 75) and (40 < humidity_worker3 <= 60)):
+        status_worker3 = 'GOOD'
+    else:
+        status_worker3 = 'BAD'
 
     query = 'SELECT First_name, Last_name FROM workers WHERE ID_worker = %s'
     cursor.execute(query, (absolute_id,))
@@ -109,18 +182,30 @@ def admin():
     print({'message': f'Hello, Admin!',
                     'ID_worker': absolute_id,
                     'workshop_name': workshop_name,
-                    'worker1': worker1,
-                    'worker2': worker2,
+                    'worker1': worker2,
+                    'worker2': worker3,
                     'first_name': name,
-                    'second_name': surname})
+                    'second_name': surname,
+           'prediction_worker2': output_worker2,
+           'prediction_worker3': output_worker3,
+           'humidity_worker2': humidity_worker2,
+           'humidity_worker3': humidity_worker3,
+           'status_worker2': status_worker2,
+           'status_worker3': status_worker3})
 
     return jsonify({'message': f'Hello, Admin!',
                     'ID_worker': absolute_id,
                     'workshop_name': workshop_name,
-                    'worker1': worker1,
-                    'worker2': worker2,
+                    'worker1': worker2,
+                    'worker2': worker3,
                     'first_name': name,
-                    'second_name': surname})
+                    'second_name': surname,
+           'prediction_worker2': output_worker2,
+           'prediction_worker3': output_worker3,
+           'humidity_worker2': humidity_worker2,
+           'humidity_worker3': humidity_worker3,
+           'status_worker2': status_worker2,
+           'status_worker3': status_worker3})
 
 
 @app.route('/worker', methods=['GET', 'POST'])

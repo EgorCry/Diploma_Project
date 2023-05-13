@@ -45,7 +45,7 @@ def main():
     
     while i < 4*60*60:
         temp1.new_value(36.6, 36.7)
-        pulse1.new_value(120, 130)
+        pulse1.new_value(88, 90)
         highp1.new_value(115, 119)
         lowp1.new_value(81, 84)
         hum1.new_value(50, 50)
