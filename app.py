@@ -1,3 +1,5 @@
+import random
+
 import mysql.connector
 import time
 import torch
@@ -81,6 +83,9 @@ def admin():
     global absolute_id
     global model
 
+    cnx = mysql.connector.connect(**config)
+    cursor = cnx.cursor()
+
     if absolute_id == -1:
         abort(403, 'Forbidden')
 
@@ -113,6 +118,7 @@ def admin():
             'LIMIT 5'
     cursor.execute(query, (worker2,))
     readings2 = cursor.fetchall()
+    print(readings2)
     readings2 = {'temperature': [float(i[0]) for i in readings2 if i[1] == 'Temperature'][0],
                  'pulse': [float(i[0]) for i in readings2 if i[1] == 'Pulse'][0],
                  'high_pressure': [float(i[0]) for i in readings2 if i[1] == 'High Pressure'][0],
@@ -128,7 +134,7 @@ def admin():
     model.eval()
 
     output_worker2 = round(model(torch.tensor(input_np).float()).detach().item(), 1) * 100
-    humidity_worker2 = readings2['humidity']
+    humidity_worker2 = readings2['humidity'] // 10 * 10
 
     if output_worker2 <= 50 and (40 < humidity_worker2 <= 60):
         status_worker2 = 'SAFE'
@@ -162,7 +168,8 @@ def admin():
     model.eval()
 
     output_worker3 = round(model(torch.tensor(input_np).float()).detach().item(), 1) * 100
-    humidity_worker3 = readings3['humidity']
+    humidity_worker3 = readings3['humidity'] // 10 * 10
+    # humidity_worker3 = random.randint(10, 80) // 10 * 10
 
     if output_worker3 <= 50 and (40 < humidity_worker3 <= 60):
         status_worker3 = 'SAFE'

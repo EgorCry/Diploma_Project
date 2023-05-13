@@ -31,6 +31,7 @@ class Sensor:
 
     def new_value(self, low, high):
         temp = round(random.uniform(low, high), 1)
+        print(temp)
 
         if temp < self.sensor_data['Min_value_sensor'] or temp > self.sensor_data['Max_value_sensor']:
             status = 'Bad'
