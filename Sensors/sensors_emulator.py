@@ -50,11 +50,11 @@ def main():
         lowp1.new_value(81, 84)
         hum1.new_value(50, 70)
 
-        if i > 20:
-            temp2.new_value(38.7, 38.9)
-            pulse2.new_value(140, 142)
-            highp2.new_value(86, 88)
-            lowp2.new_value(59, 61)
+        if i > 1:
+            temp2.new_value(38.9, 39.0)
+            pulse2.new_value(120, 121)
+            highp2.new_value(120, 121)
+            lowp2.new_value(80, 81)
             hum2.new_value(50, 70)
         else:
             temp2.new_value(36.9, 37.0)

@@ -135,6 +135,8 @@ def admin():
 
     output_worker2 = round(model(torch.tensor(input_np).float()).detach().item(), 1) * 100
     humidity_worker2 = readings2['humidity'] // 10 * 10
+    humidity = random.randint(51, 70) // 10 * 10
+    humidity_worker2 = humidity
 
     if output_worker2 <= 50 and (40 < humidity_worker2 <= 60):
         status_worker2 = 'SAFE'
@@ -169,6 +171,7 @@ def admin():
 
     output_worker3 = round(model(torch.tensor(input_np).float()).detach().item(), 1) * 100
     humidity_worker3 = readings3['humidity'] // 10 * 10
+    humidity_worker3 = humidity
     # humidity_worker3 = random.randint(10, 80) // 10 * 10
 
     if output_worker3 <= 50 and (40 < humidity_worker3 <= 60):
@@ -186,19 +189,19 @@ def admin():
     name = result[0]
     surname = result[1]
 
-    print({'message': f'Hello, Admin!',
-                    'ID_worker': absolute_id,
-                    'workshop_name': workshop_name,
-                    'worker1': worker2,
-                    'worker2': worker3,
-                    'first_name': name,
-                    'second_name': surname,
-           'prediction_worker2': output_worker2,
-           'prediction_worker3': output_worker3,
-           'humidity_worker2': humidity_worker2,
-           'humidity_worker3': humidity_worker3,
-           'status_worker2': status_worker2,
-           'status_worker3': status_worker3})
+    # print({'message': f'Hello, Admin!',
+    #                 'ID_worker': absolute_id,
+    #                 'workshop_name': workshop_name,
+    #                 'worker1': worker2,
+    #                 'worker2': worker3,
+    #                 'first_name': name,
+    #                 'second_name': surname,
+    #        'prediction_worker2': output_worker2,
+    #        'prediction_worker3': output_worker3,
+    #        'humidity_worker2': humidity_worker2,
+    #        'humidity_worker3': humidity_worker3,
+    #        'status_worker2': status_worker2,
+    #        'status_worker3': status_worker3})
 
     return jsonify({'message': f'Hello, Admin!',
                     'ID_worker': absolute_id,
