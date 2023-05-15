@@ -147,6 +147,15 @@ def admin():
     else:
         status_worker2 = 'BAD'
 
+    query = 'SELECT VALUE FROM device_readings r ' \
+            'JOIN device_settings s ON r.ID_device_setting = s.ID_device_setting ' \
+            'WHERE s.ID_worker = %s  ' \
+            'ORDER BY r.time_value DESC ' \
+            'LIMIT 1'
+    cursor.execute(query, (worker2,))
+    device_worker2 = cursor.fetchone()[0]
+    print(device_worker2, worker2)
+
     query = 'SELECT r.sensor_value, t.description FROM sensor_readings r ' \
             'INNER JOIN sensors s ON r.ID_sensor = s.ID_sensor ' \
             'INNER JOIN type_sensor t ON s.ID_sensor = t.ID_sensor ' \
@@ -183,6 +192,8 @@ def admin():
     else:
         status_worker3 = 'BAD'
 
+    device_worker3 = 0
+
     query = 'SELECT First_name, Last_name FROM workers WHERE ID_worker = %s'
     cursor.execute(query, (absolute_id,))
     result = cursor.fetchone()
@@ -201,7 +212,9 @@ def admin():
     #        'humidity_worker2': humidity_worker2,
     #        'humidity_worker3': humidity_worker3,
     #        'status_worker2': status_worker2,
-    #        'status_worker3': status_worker3})
+    #        'status_worker3': status_worker3,
+    #        'worker_2_device': worker_2_device,
+    #        'worker_3_device': worker_3_device})
 
     return jsonify({'message': f'Hello, Admin!',
                     'ID_worker': absolute_id,
@@ -210,12 +223,14 @@ def admin():
                     'worker2': worker3,
                     'first_name': name,
                     'second_name': surname,
-           'prediction_worker2': output_worker2,
-           'prediction_worker3': output_worker3,
-           'humidity_worker2': humidity_worker2,
-           'humidity_worker3': humidity_worker3,
-           'status_worker2': status_worker2,
-           'status_worker3': status_worker3})
+                    'prediction_worker2': output_worker2,
+                    'prediction_worker3': output_worker3,
+                    'humidity_worker2': humidity_worker2,
+                    'humidity_worker3': humidity_worker3,
+                    'status_worker2': status_worker2,
+                    'status_worker3': status_worker3,
+                    'device_worker2': device_worker2,
+                    'device_worker3': device_worker3})
 
 
 @app.route('/worker', methods=['GET', 'POST'])
