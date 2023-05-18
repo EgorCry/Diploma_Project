@@ -236,6 +236,10 @@ def admin():
 @app.route('/worker', methods=['GET', 'POST'])
 def worker():
     global absolute_id
+    global model
+
+    cnx = mysql.connector.connect(**config)
+    cursor = cnx.cursor()
 
     if absolute_id == -1:
         abort(403, 'Forbidden')
@@ -247,10 +251,79 @@ def worker():
     if result[0]:
         abort(403, 'Forbidden')
 
-    if request.method == 'POST' and request.form.get('action') == 'exit':
-        return redirect(url_for('logout'))
+    query = 'SELECT workshop_name FROM workshops WHERE ID_workshop = ' \
+            '(SELECT ID_workshop FROM workshop_worker WHERE ID_worker = %s)'
+    cursor.execute(query, (absolute_id,))
+    workshop_name = cursor.fetchone()[0]
+
+    query = 'SELECT r.sensor_value, t.description FROM sensor_readings r ' \
+            'INNER JOIN sensors s ON r.ID_sensor = s.ID_sensor ' \
+            'INNER JOIN type_sensor t ON s.ID_sensor = t.ID_sensor ' \
+            'WHERE s.ID_worker = %s ' \
+            'ORDER BY r.time_sensor_reading DESC ' \
+            'LIMIT 5'
+    cursor.execute(query, (absolute_id,))
+    readings = cursor.fetchall()
+    readings = {'temperature': [float(i[0]) for i in readings if i[1] == 'Temperature'][0],
+                 'pulse': [float(i[0]) for i in readings if i[1] == 'Pulse'][0],
+                 'high_pressure': [float(i[0]) for i in readings if i[1] == 'High Pressure'][0],
+                 'low_pressure': [float(i[0]) for i in readings if i[1] == 'Low Pressure'][0],
+                 'humidity': [float(i[0]) for i in readings if i[1] == 'Humidity'][0]}
+
+    input_np = np.array([readings['temperature'],
+                         readings['pulse'],
+                         readings['high_pressure'],
+                         readings['low_pressure']])
+
+    model = create_model()
+    model.eval()
+
+    output_worker = round(model(torch.tensor(input_np).float()).detach().item(), 1) * 100
+
+    humidity_worker = readings['humidity'] // 10 * 10
+
+    if output_worker <= 50 and (40 < humidity_worker <= 60):
+        status_worker = 'SAFE'
+    elif ((50 < output_worker <= 75) and (60 < humidity_worker <= 75)) or (
+            (0 < output_worker <= 50) and (60 < humidity_worker <= 75)) or (
+            (50 < output_worker <= 75) and (40 < humidity_worker <= 60)):
+        status_worker = 'GOOD'
     else:
-        return jsonify({'message': 'Hello, Admin!', 'ID_worker': absolute_id})
+        status_worker = 'BAD'
+
+    query = 'SELECT VALUE FROM device_readings r ' \
+            'JOIN device_settings s ON r.ID_device_setting = s.ID_device_setting ' \
+            'WHERE s.ID_worker = %s  ' \
+            'ORDER BY r.time_value DESC ' \
+            'LIMIT 1'
+    cursor.execute(query, (absolute_id,))
+    device_worker = cursor.fetchone()[0]
+
+    query = 'SELECT First_name, Last_name FROM workers WHERE ID_worker = %s'
+    cursor.execute(query, (absolute_id,))
+    result = cursor.fetchone()
+    name = result[0]
+    surname = result[1]
+
+    print({'message': f'Hello, Admin!',
+                    'ID_worker': absolute_id,
+                    'workshop_name': workshop_name,
+                    'first_name': name,
+                    'surname': surname,
+                    'prediction_worker': output_worker,
+                    'humidity_worker': humidity_worker,
+                    'status_worker': status_worker,
+                    'device_worker': device_worker})
+
+    return jsonify({'message': f'Hello, Admin!',
+                    'ID_worker': absolute_id,
+                    'workshop_name': workshop_name,
+                    'first_name': name,
+                    'surname': surname,
+                    'prediction_worker': output_worker,
+                    'humidity_worker': humidity_worker,
+                    'status_worker': status_worker,
+                    'device_worker': device_worker})
 
 
 @app.route('/logout', methods=['GET', 'POST'])
