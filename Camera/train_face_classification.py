@@ -79,13 +79,38 @@ def get_embedding(model, face_pixels):
     return yhat[0]
 
 
+# load train dataset
+trainX, trainy = load_dataset('Avatars/')
+print(trainX.shape, trainy.shape)
+# load test dataset
+testX, testy = load_dataset('Avatars/')
+print(testX.shape, testy.shape)
+# save arrays to one file in compressed format
+savez_compressed('faces-dataset.npz', trainX, trainy, testX, testy)
+
+# load the face dataset
 data = load('faces-dataset.npz')
 trainX, trainy, testX, testy = data['arr_0'], data['arr_1'], data['arr_2'], data['arr_3']
 print('Loaded: ', trainX.shape, trainy.shape, testX.shape, testy.shape)
-
-# model = tf.keras.models.load_model('face_classification/facenet_keras.h5')
+# load the facenet model
 model = FaceNet()
 print('Loaded Model')
+# convert each face in the train set to an embedding
+newTrainX = list()
+for face_pixels in trainX:
+    embedding = get_embedding(model, face_pixels)
+    newTrainX.append(embedding)
+newTrainX = asarray(newTrainX)
+print(newTrainX.shape)
+# convert each face in the test set to an embedding
+newTestX = list()
+for face_pixels in testX:
+    embedding = get_embedding(model, face_pixels)
+    newTestX.append(embedding)
+newTestX = asarray(newTestX)
+print(newTestX.shape)
+# save arrays to one file in compressed format
+savez_compressed('faces-embeddings.npz', newTrainX, trainy, newTestX, testy)
 
 # load dataset
 data = load('faces-embeddings.npz')
@@ -97,7 +122,6 @@ in_encoder = Normalizer(norm='l2')
 trainX = in_encoder.transform(trainX)
 testX = in_encoder.transform(testX)
 
-
 # label encode targets
 out_encoder = LabelEncoder()
 out_encoder.fit(trainy)
@@ -105,62 +129,13 @@ trainy = out_encoder.transform(trainy)
 testy = out_encoder.transform(testy)
 
 # fit model
-model_SVC = SVC(kernel='linear', probability=True)
-model_SVC.fit(trainX, trainy)
-
-
+model = SVC(kernel='linear', probability=True)
+model.fit(trainX, trainy)
 # predict
-yhat_train = model_SVC.predict(trainX)
-yhat_test = model_SVC.predict(testX)
+yhat_train = model.predict(trainX)
+yhat_test = model.predict(testX)
 # score
 score_train = accuracy_score(trainy, yhat_train)
 score_test = accuracy_score(testy, yhat_test)
 # summarize
 print('Accuracy: train=%.3f, test=%.3f' % (score_train*100, score_test*100))
-
-# load faces
-data = load('faces-dataset.npz')
-testX_faces = data['arr_2']
-print(testX_faces)
-
-# test model on a random example from the test dataset
-selection = choice([i for i in range(testX.shape[0])])
-random_face_pixels = testX_faces[selection]
-random_face_emb = testX[selection]
-random_face_class = testy[selection]
-random_face_name = out_encoder.inverse_transform([random_face_class])
-# prediction for the face
-samples = expand_dims(random_face_emb, axis=0)
-yhat_class = model_SVC.predict(samples)
-yhat_prob = model_SVC.predict_proba(samples)
-# get name
-class_index = yhat_class[0]
-class_probability = yhat_prob[0, class_index] * 100
-predict_names = out_encoder.inverse_transform(yhat_class)
-print('Predicted: %s (%.3f)' % (predict_names[0], class_probability))
-print('Expected: %s' % random_face_name[0])
-# plot for fun
-pyplot.imshow(random_face_pixels)
-title = '%s (%.3f)' % (predict_names[0], class_probability)
-pyplot.title(title)
-pyplot.show()
-
-# predict new photo
-path = 'Avatars/Egor Gridasov/1.jpg'
-face = get_embedding(model, extract_face(path))
-# prediction for the face
-samples = expand_dims(face, axis=0)
-yhat_class = model_SVC.predict(samples)
-print(yhat_class, type(yhat_class), type(yhat_class[0]))
-yhat_prob = model_SVC.predict_proba(samples)
-# get name
-class_index = yhat_class[0]
-class_probability = yhat_prob[0, class_index] * 100
-predict_names = out_encoder.inverse_transform(yhat_class)
-print('Predicted: %s (%.3f)' % (predict_names[0], class_probability))
-print('Expected: %s' % random_face_name[0])
-# plot for fun
-pyplot.imshow(extract_face(path))
-title = '%s (%.3f)' % (predict_names[0], class_probability)
-pyplot.title(title)
-pyplot.show()
