@@ -1,15 +1,18 @@
 import random
 
 import mysql.connector
+import re
 import time
 import torch
 import numpy as np
+from datetime import datetime
 from Sensors.torch_model_class import create_model
 from flask import Flask, jsonify, request, redirect, url_for, abort, make_response
 
 app = Flask(__name__)
 
 absolute_id = -1
+pattern = '(?<=(:))(([a-zA-Z]+\s[a-zA-Z]*$)|[0-1]*)'
 model = torch.load('Sensors/torch_model.pth')
 
 # параметры подключения к базе данных
@@ -82,6 +85,7 @@ def registration():
 def admin():
     global absolute_id
     global model
+    global pattern
 
     cnx = mysql.connector.connect(**config)
     cursor = cnx.cursor()
@@ -109,6 +113,16 @@ def admin():
     workers = cursor.fetchall()
     worker2 = workers[0][0]
     worker3 = workers[1][0]
+    worker_2 = workers[0][0]
+    query = 'Select First_name, Last_name FROM workers WHERE ID_worker = %s'
+    cursor.execute(query, (worker_2,))
+    result = cursor.fetchone()
+    worker_2 = ' '.join([result[0], result[1]])
+    worker_3 = workers[1][0]
+    query = 'Select First_name, Last_name FROM workers WHERE ID_worker = %s'
+    cursor.execute(query, (worker_3,))
+    result = cursor.fetchone()
+    worker_3 = ' '.join([result[0], result[1]])
 
     query = 'SELECT r.sensor_value, t.description FROM sensor_readings r ' \
             'INNER JOIN sensors s ON r.ID_sensor = s.ID_sensor ' \
@@ -147,14 +161,29 @@ def admin():
     else:
         status_worker2 = 'BAD'
 
-    query = 'SELECT VALUE FROM device_readings r ' \
+    query = 'SELECT VALUE, TIME_VALUE FROM device_readings r ' \
             'JOIN device_settings s ON r.ID_device_setting = s.ID_device_setting ' \
             'WHERE s.ID_worker = %s  ' \
             'ORDER BY r.time_value DESC ' \
             'LIMIT 1'
     cursor.execute(query, (worker2,))
-    device_worker2 = cursor.fetchone()[0]
-    print(device_worker2, worker2)
+    worker_camera = cursor.fetchone()
+    device_worker = worker_camera[0].split(',')
+
+    device_worker_name_2 = device_worker[0][device_worker[0].index(':') + 1:]
+
+    timestamp = time.time()
+    dt = datetime.fromtimestamp(timestamp)
+    formatted_time = dt.strftime("%Y-%m-%d %H:%M:%S")
+    print(worker_camera[1], formatted_time)
+    print((worker_camera[1] - datetime.strptime(formatted_time, "%Y-%m-%d %H:%M:%S")).total_seconds())
+    if abs((worker_camera[1] - datetime.strptime(formatted_time, "%Y-%m-%d %H:%M:%S")).total_seconds()) <= 5:
+        device_worker_name_2 = 1
+    else:
+        device_worker_name_2 = 0
+
+    device_worker_mask_2 = int(device_worker[1][device_worker[1].index(':') + 1:])
+
 
     query = 'SELECT r.sensor_value, t.description FROM sensor_readings r ' \
             'INNER JOIN sensors s ON r.ID_sensor = s.ID_sensor ' \
@@ -192,7 +221,8 @@ def admin():
     else:
         status_worker3 = 'BAD'
 
-    device_worker3 = 0
+    device_worker_mask_3 = 0
+    device_worker_name_3 = 1
 
     query = 'SELECT First_name, Last_name FROM workers WHERE ID_worker = %s'
     cursor.execute(query, (absolute_id,))
@@ -219,8 +249,8 @@ def admin():
     return jsonify({'message': f'Hello, Admin!',
                     'ID_worker': absolute_id,
                     'workshop_name': workshop_name,
-                    'worker1': worker2,
-                    'worker2': worker3,
+                    'worker_2': worker_2,
+                    'worker_3': worker_3,
                     'first_name': name,
                     'second_name': surname,
                     'prediction_worker2': output_worker2,
@@ -229,14 +259,17 @@ def admin():
                     'humidity_worker3': humidity_worker3,
                     'status_worker2': status_worker2,
                     'status_worker3': status_worker3,
-                    'device_worker2': device_worker2,
-                    'device_worker3': device_worker3})
+                    'device_worker_name_2': device_worker_name_2,
+                    'device_worker_mask_2': device_worker_mask_2,
+                    'device_worker_name_3': device_worker_name_3,
+                    'device_worker_mask_3': device_worker_mask_3})
 
 
 @app.route('/worker', methods=['GET', 'POST'])
 def worker():
     global absolute_id
     global model
+    global pattern
 
     cnx = mysql.connector.connect(**config)
     cursor = cnx.cursor()
@@ -291,13 +324,28 @@ def worker():
     else:
         status_worker = 'BAD'
 
-    query = 'SELECT VALUE FROM device_readings r ' \
+    query = 'SELECT VALUE, TIME_VALUE FROM device_readings r ' \
             'JOIN device_settings s ON r.ID_device_setting = s.ID_device_setting ' \
             'WHERE s.ID_worker = %s  ' \
             'ORDER BY r.time_value DESC ' \
             'LIMIT 1'
     cursor.execute(query, (absolute_id,))
-    device_worker = cursor.fetchone()[0]
+    worker_camera = cursor.fetchone()
+    device_worker = worker_camera[0].split(',')
+
+    device_worker_name = device_worker[0][device_worker[0].index(':')+1:]
+
+    timestamp = time.time()
+    dt = datetime.fromtimestamp(timestamp)
+    formatted_time = dt.strftime("%Y-%m-%d %H:%M:%S")
+    print(worker_camera[1], formatted_time)
+    print((worker_camera[1] - datetime.strptime(formatted_time, "%Y-%m-%d %H:%M:%S")).total_seconds())
+    if abs((worker_camera[1] - datetime.strptime(formatted_time, "%Y-%m-%d %H:%M:%S")).total_seconds()) <= 5:
+        device_worker_name = 1
+    else:
+        device_worker_name = 0
+
+    device_worker_mask = int(device_worker[1][device_worker[1].index(':')+1:])
 
     query = 'SELECT First_name, Last_name FROM workers WHERE ID_worker = %s'
     cursor.execute(query, (absolute_id,))
@@ -305,7 +353,7 @@ def worker():
     name = result[0]
     surname = result[1]
 
-    print({'message': f'Hello, Admin!',
+    print({'message': f'Hello, Worker!',
                     'ID_worker': absolute_id,
                     'workshop_name': workshop_name,
                     'first_name': name,
@@ -313,9 +361,10 @@ def worker():
                     'prediction_worker': output_worker,
                     'humidity_worker': humidity_worker,
                     'status_worker': status_worker,
-                    'device_worker': device_worker})
+                    'device_worker_name': device_worker_name,
+                    'device_worker_mask': device_worker_mask})
 
-    return jsonify({'message': f'Hello, Admin!',
+    return jsonify({'message': f'Hello, Worker!',
                     'ID_worker': absolute_id,
                     'workshop_name': workshop_name,
                     'first_name': name,
@@ -323,7 +372,8 @@ def worker():
                     'prediction_worker': output_worker,
                     'humidity_worker': humidity_worker,
                     'status_worker': status_worker,
-                    'device_worker': device_worker})
+                    'device_worker_name': device_worker_name,
+                    'device_worker_mask': device_worker_mask})
 
 
 @app.route('/logout', methods=['GET', 'POST'])

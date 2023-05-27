@@ -260,6 +260,8 @@ while True:
     # face mask or not
     (locs, preds, names) = detect_and_predict_mask(frame, faceNet, maskNet)
 
+    check_name = ['Egor Gridasov', 'Robert Downey', 'Ryan Gosling']
+
     # loop over the detected face locations and their corresponding
     # locations
     for (box, pred, name) in zip(locs, preds, names):
@@ -271,7 +273,9 @@ while True:
         class_index = name
         print(class_index, type(class_index))
         names = ['Egor Gridasov', 'Robert Downey', 'Ryan Gosling']
-        predict_names = names[class_index]
+        predict_name = names[class_index]
+        if predict_name in check_name:
+            check_name.remove(predict_name)
 
         # determine the class label and color we'll use to draw
         # the bounding box and text
@@ -288,7 +292,9 @@ while True:
         label = "{}: {:.2f}%".format(label, max(mask, withoutMask) * 100)
 
         #include name of the worker
-        label_2 = f'{predict_names}'
+        label_2 = f'{predict_name}'
+
+        value = f"Person:{predict_name}, Mask:{'1' if mask else '0'}"
 
         # display the label and bounding box rectangle on the output
         # frame
@@ -298,7 +304,20 @@ while True:
                     cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 255, 0), 2)
         cv2.rectangle(frame, (startX, startY), (endX, endY), color, 2)
 
-    # add to the database mask status
+        # add to the database mask status and classification
+        now = datetime.datetime.now()
+        formatted_date = now.strftime("%Y-%m-%d %H:%M:%S")
+        query = 'SELECT MAX(ID_device_reading) FROM device_readings'
+        cursor = cnx.cursor()
+        cursor.execute(query)
+        reading_id = cursor.fetchone()[0] + 1
+        query = 'INSERT INTO device_readings(ID_device_reading, Value, Time_value, ID_device_setting)' \
+                'VALUES (%s, %s, %s, %s)'
+        cursor.execute(query, (reading_id, value, formatted_date, 1))
+        cnx.commit()
+
+    # add to the database mask status and classification
+    value = f"Person:{'Ryan Gosling'}, Mask:{'0'}"
     now = datetime.datetime.now()
     formatted_date = now.strftime("%Y-%m-%d %H:%M:%S")
     query = 'SELECT MAX(ID_device_reading) FROM device_readings'
@@ -306,8 +325,8 @@ while True:
     cursor.execute(query)
     reading_id = cursor.fetchone()[0] + 1
     query = 'INSERT INTO device_readings(ID_device_reading, Value, Time_value, ID_device_setting)' \
-            'VALUES (%s, %s, %s, %s)'
-    cursor.execute(query, (reading_id, mask, formatted_date, 1))
+                'VALUES (%s, %s, %s, %s)'
+    cursor.execute(query, (reading_id, value, formatted_date, 2))
     cnx.commit()
 
     # show the output frame
@@ -318,7 +337,7 @@ while True:
     if key == ord("q"):
         break
         
-    time.sleep(1)
+    time.sleep(0.5)
 
 # do a bit of cleanup
 cv2.destroyAllWindows()
